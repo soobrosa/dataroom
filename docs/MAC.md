@@ -109,6 +109,35 @@ compressor active. It runs without OOM, but if a long job pages heavily, lower `
 (e.g. `32768`) in `.env`. The v5-nano embedder stays on CPU (`EMBED_DEVICE=cpu`) precisely so
 Metal's memory is reserved for the LLM.
 
+### Memory tiers (unified memory)
+
+| Unified memory | Qwen3.6-35B-A3B (Q4, ~22 GB) | Guidance |
+| --- | --- | --- |
+| 16 GB | ✗ won't fit | Not supported; a 7-14B model is the ceiling on this tier. |
+| 24 GB | ⚠ knife's edge | Fits but tight - keep `CTX_SIZE` modest (`32768`), close Chrome/Docker/IDEs. |
+| 32-48 GB | ✓ comfortable (**tested on 36 GB**) | Recommended. ~22 GB weights + KV + headroom; `CTX_SIZE=65536` default. |
+| 96 GB+ | ✓ plenty | Room for much longer context or larger models. |
+
+## Faster / alternative Mac runners (optional)
+
+`scripts/mac-run.sh` uses **llama.cpp (Metal)** as the stable default - broad compatibility and
+verified stable past 128K context. The faster path, **`mlx-lm` (+ 4-bit KV where supported)**, is
+shipped opt-in behind the `BACKEND` knob described in
+[Alternative backend: MLX](#alternative-backend-mlx-faster-prefill). The measurements behind that
+choice - ~5.9x prefill, decode parity, greedy-lossless 4-bit KV, correct recall through ~85K
+context - are journalled in [`MLX-RESEARCH-FINDINGS.md`](./MLX-RESEARCH-FINDINGS.md) and
+reproducible with `scripts/probe_speed.sh`, `scripts/mlx_ceiling.sh`, `scripts/mlx_parity.sh`, and
+`scripts/mlx_recall.py` on your own tier.
+
+Two further MLX options were evaluated and are **not usable here yet**:
+
+- **Ollama 0.19+ MLX backend / LM Studio MLX** - easiest ergonomics, but neither exposes a
+  `--kv-bits`-equivalent KV-quant knob (the ceiling fix this path depends on) and neither can
+  import our custom MLX build. Revisit when those land.
+- **MTP (speculative decoding) on MLX via MTPLX** - real on a verified 27B (~1.4-2.1x decode at
+  51-71% draft acceptance), but no *verified* Qwen3.6-35B-A3B MTP build exists; the only
+  version-matching one is publisher-unverified with a weak head (~30% acceptance). Deferred.
+
 ## Headless (no web UI)
 
 ```bash

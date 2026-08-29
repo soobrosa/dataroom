@@ -85,7 +85,7 @@ bash scripts/setup.sh
 <details>
 <summary><b>Option C: Apple Silicon (Mac, Metal)</b></summary>
 
-No Docker, no NVIDIA. The model runs on Metal via Homebrew `llama.cpp`; the app, Pi agent, and embedder run in a local `uv` venv. Needs 32 GB+ unified memory (the Q4 model wires ~22 GB).
+No Docker, no NVIDIA. The model runs on Metal via Homebrew `llama.cpp`; the app, Pi agent, and embedder run in a local `uv` venv. Needs 32 GB+ unified memory (the Q4 model wires ~22 GB); see the [memory tiers](docs/MAC.md#memory-tiers-unified-memory) and [faster MLX runners](docs/MAC.md#faster--alternative-mac-runners-optional) in `docs/MAC.md`.
 
 ```bash
 brew install llama.cpp
