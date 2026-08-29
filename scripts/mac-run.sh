@@ -113,14 +113,20 @@ export PI_BIN="$(command -v pi)"
 export PI_SKIP_VERSION_CHECK=1
 
 # Wait for the :8080 server to answer /health, or tail its log and bail.
+# WAIT_SECS covers a first-run model/drafter download plus the Metal load; raise it on a
+# slow connection.
+WAIT_SECS="${WAIT_SECS:-900}"
 wait_for_server() {
   local label="$1" logf="$2"
   echo -n "waiting for $label"
-  for i in $(seq 1 120); do
+  for i in $(seq 1 $((WAIT_SECS / 2))); do
     if curl -fsS "http://127.0.0.1:8080/health" >/dev/null 2>&1; then echo " ready"; return 0; fi
     echo -n "."; sleep 2
-    [ "$i" = 120 ] && { echo " TIMEOUT"; tail -30 "$logf"; exit 1; }
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      echo " DIED"; tail -30 "$logf"; exit 1
+    fi
   done
+  echo " TIMEOUT after ${WAIT_SECS}s (server still running; re-run this script once it answers /health)"; tail -30 "$logf"; exit 1
 }
 
 # --- 1. inference server (:8080) ----------------------------------------------
@@ -137,6 +143,7 @@ elif [ "$BACKEND" = "dspark" ]; then
     $DSPARK_EXTRA_ARGS \
     > "$ROOT/logs/dspark.log" 2>&1 &
   echo "mlx-dspark PID: $!  (logs: logs/dspark.log; stop with pkill -f mlx-dspark)"
+  SERVER_PID=$!
   wait_for_server "mlx-dspark" "$ROOT/logs/dspark.log"
 else
   echo "=== starting llama-server (Metal) - loads ~18 GB, first run ~30-60s ==="
@@ -159,6 +166,7 @@ else
     $SPEC_ARGS \
     > "$ROOT/logs/llama.log" 2>&1 &
   echo "llama-server PID: $!  (logs: logs/llama.log)"
+  SERVER_PID=$!
   wait_for_server "llama-server" "$ROOT/logs/llama.log"
 fi
 
