@@ -83,9 +83,14 @@ if [ "$BACKEND" = "dspark" ]; then
   else
     echo "NOTE: BACKEND=dspark will download $DSPARK_MODEL (~18 GB) into the HF cache on first run."
   fi
+  # Thinking is OFF by default: reasoning before every tool call is a pure decode-token tax on
+  # the agent loop (mlx-dspark's own agent A/B: ~30% more tokens, ~40% slower wall clock with it
+  # on). Set DSPARK_THINKING=1 to leave the model's default (thinking on) in place.
+  DSPARK_THINKING="${DSPARK_THINKING:-0}"
   # Extra flags passed verbatim to `mlx-dspark serve` (e.g. --drafter <repo> for a non-registry
   # target, --api-key, --max-batch).
   DSPARK_EXTRA_ARGS="${DSPARK_EXTRA_ARGS:-}"
+  if [ "$DSPARK_THINKING" != "1" ]; then DSPARK_EXTRA_ARGS="--no-thinking $DSPARK_EXTRA_ARGS"; fi
   # mlx-dspark resolves the request's `model` field against the loaded model (basename match,
   # per its own pi config example), so pin Pi's MODEL_ID to the basename.
   export MODEL_ID="${MODEL_ID:-${DSPARK_MODEL##*/}}"
