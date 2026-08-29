@@ -10,3 +10,5 @@ node_modules/
 *.zip
 dataroom/.index*
 nginx/certs/
+.DS_Store
+logs/
