@@ -15,10 +15,12 @@ Give it a query. A local model in a [Pi](https://pi.dev) harness loops search-re
 > tracks [`hanxiao/dataroom`](https://github.com/hanxiao/dataroom) `main` (synced at `c8a9771`) and
 > carries the Mac path ahead of upstream:
 >
-> - **`BACKEND={llamacpp|mlx}`** in `scripts/mac-run.sh` - opt-in `mlx_lm.server` for ~6x prefill on
->   Apple Silicon, with 4-bit KV auto-enabled when the installed mlx-lm supports `--kv-bits`.
->   Default stays llama.cpp. See [`docs/MAC.md`](docs/MAC.md).
->   ([upstream PR #4](https://github.com/hanxiao/dataroom/pull/4), open)
+> - **`BACKEND={dspark|llamacpp}`** in `scripts/mac-run.sh` - default is **mlx-dspark serving
+>   Qwen3.8-27B-4bit** (Apple-native MLX, DSpark/DFlash lossless speculative decoding, 8-bit KV,
+>   prefix caching); `llamacpp` keeps the GGUF + built-in MTP-head path. The 262K-context dense
+>   hybrid lifts the practical context ceiling from ~85K (old Qwen3.6 MoE default) to 128K+ on
+>   36 GB. See [`docs/MAC.md`](docs/MAC.md).
+>   ([upstream PR #4](https://github.com/hanxiao/dataroom/pull/4), open - superseded by this)
 > - **K-Dense (Kady) MCP server** wrapping the job API, plus the `pi/extensions` typebox fix that
 >   made the index extension load.
 >   ([upstream PR #5](https://github.com/hanxiao/dataroom/pull/5), open)
@@ -45,7 +47,7 @@ Everything runs locally on your own GPU: the model is self-hosted (llama.cpp), a
        alt="Dataroom homepage: a query box and a live list of jobs with status, file counts, and pause/resume/download controls" />
 </p>
 
-Submit a query and an async job spins up a headless Pi coding agent backed by a self-hosted Qwen3.6-35B-A3B (llama.cpp). The agent runs its own research loop: `pi --mode json --continue` resumes the same per-cwd session across turns, and on each turn it searches, reads, reranks, and writes sourced files into a `dataroom/` directory on disk.
+Submit a query and an async job spins up a headless Pi coding agent backed by a self-hosted local model (Qwen3.8-27B via mlx-dspark on the Mac path; Qwen3.6-35B-A3B via llama.cpp on the NVIDIA/Docker path). The agent runs its own research loop: `pi --mode json --continue` resumes the same per-cwd session across turns, and on each turn it searches, reads, reranks, and writes sourced files into a `dataroom/` directory on disk.
 
 - Autonomous loop: the agent is not micromanaged. It is handed tools and a one-page methodology, then drives itself - search, read, dedup, write, verify - until the work is done.
 - Outcome-based stopping: `DONE` is honored only once the dataroom holds enough substantive sourced files, all sub-questions are closed, and a `SUMMARY.md` exists. Turns / seconds / Jina-call caps are only hard backstops, and a premature `DONE` is rejected so the agent keeps going. The reason it stopped is surfaced on the dashboard.
@@ -102,21 +104,23 @@ bash scripts/setup.sh
 <details>
 <summary><b>Option C: Apple Silicon (Mac, Metal)</b></summary>
 
-No Docker, no NVIDIA. The model runs on Metal via Homebrew `llama.cpp`; the app, Pi agent, and embedder run in a local `uv` venv. Needs 32 GB+ unified memory (the Q4 model wires ~22 GB); see the [memory tiers](docs/MAC.md#memory-tiers-unified-memory) and [faster MLX runners](docs/MAC.md#faster--alternative-mac-runners-optional) in `docs/MAC.md`.
+No Docker, no NVIDIA. The default backend is **mlx-dspark** (Apple-native MLX) serving
+**Qwen3.8-27B-4bit** with lossless speculative decoding and prefix caching; `BACKEND=llamacpp`
+keeps a Homebrew `llama.cpp` GGUF path. The app, Pi agent, and embedder run in a local `uv` venv.
+Needs 32 GB+ unified memory (the 4-bit model wires ~18 GB + cache); see the
+[memory tiers](docs/MAC.md#memory-tiers-unified-memory) and [backends](docs/MAC.md#backends) in `docs/MAC.md`.
 
 ```bash
-brew install llama.cpp
 npm install -g @earendil-works/pi-coding-agent@0.78.0
 uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python torch -r server/requirements.txt jina-cli huggingface-hub hf_transfer
-mkdir -p models/mtp
-HF_HUB_ENABLE_HF_TRANSFER=1 HF_TOKEN=hf_... .venv/bin/python -c "from huggingface_hub import hf_hub_download; \
-hf_hub_download('unsloth/Qwen3.6-35B-A3B-MTP-GGUF','Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf',local_dir='models/mtp')"
+uv pip install --python .venv/bin/python torch -r server/requirements.txt jina-cli huggingface-hub
+uv venv .venv-dspark && VIRTUAL_ENV=$PWD/.venv-dspark uv pip install mlx-dspark
+# (BACKEND=llamacpp instead? brew install llama.cpp and download the Qwen3.8 GGUF - see docs/MAC.md)
 cp .env.example .env && sed -i '' 's/^JINA_API_KEY=.*/JINA_API_KEY=jina_your_real_key/' .env
 bash scripts/mac-run.sh
 ```
 
-GGUF and Metal-flag details (MTP needs `llama.cpp` >= 9430): [`docs/MAC.md`](docs/MAC.md).
+The model auto-downloads on first run (~18 GB). Backend and flag details: [`docs/MAC.md`](docs/MAC.md).
 
 </details>
 
