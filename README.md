@@ -11,6 +11,23 @@ Give it a query. A local model in a [Pi](https://pi.dev) harness loops search-re
   <b>Live demo → <a href="https://dataroom.hanxiao.io">dataroom.hanxiao.io</a></b>
 </p>
 
+> **This is the Apple Silicon fork.** [`soobrosa/dataroom`](https://github.com/soobrosa/dataroom)
+> tracks [`hanxiao/dataroom`](https://github.com/hanxiao/dataroom) `main` (synced at `c8a9771`) and
+> carries the Mac path ahead of upstream:
+>
+> - **`BACKEND={llamacpp|mlx}`** in `scripts/mac-run.sh` - opt-in `mlx_lm.server` for ~6x prefill on
+>   Apple Silicon, with 4-bit KV auto-enabled when the installed mlx-lm supports `--kv-bits`.
+>   Default stays llama.cpp. See [`docs/MAC.md`](docs/MAC.md).
+>   ([upstream PR #4](https://github.com/hanxiao/dataroom/pull/4), open)
+> - **K-Dense (Kady) MCP server** wrapping the job API, plus the `pi/extensions` typebox fix that
+>   made the index extension load.
+>   ([upstream PR #5](https://github.com/hanxiao/dataroom/pull/5), open)
+> - **The measurements**: [`docs/MLX-RESEARCH-FINDINGS.md`](docs/MLX-RESEARCH-FINDINGS.md),
+>   a [backend glossary](docs/GLOSSARY.md), and the benchmark/correctness harness in `scripts/`.
+>
+> Everything else is upstream's, and the NVIDIA/Docker path is untouched. Use this fork if you want
+> the MLX backend today; both PRs are still open upstream.
+
 ## Why
 
 [For long-horizon task you need a grounded, well-organized knowledge dump before the real work can start.](https://x.com/hxiao/status/2044765001370701981?s=20) That upfront research is mostly a search-read-write loop, and few things are usually wrong with how it gets done today.
