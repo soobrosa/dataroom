@@ -344,7 +344,9 @@ def health():
     return {"ok": True}
 
 
-MAX_BUDGET_SECONDS = 3600   # 60-minute ceiling on a single job's time-box (one L4 slot, fair use)
+# Ceiling on a single job's time-box. Upstream default 3600 (60 min) guards the shared demo's
+# single L4 slot; on a self-hosted box raise it via MAX_BUDGET_SECONDS (see .env.example).
+MAX_BUDGET_SECONDS = int(os.environ.get("MAX_BUDGET_SECONDS", "3600"))
 MIN_QUERY_LEN = 10          # reject empty / trivially short queries
 
 
